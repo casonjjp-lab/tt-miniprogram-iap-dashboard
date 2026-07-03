@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TT小程序投放及收入数据管理系统</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/chart.js@4.4.7/dist/chart.umd.min.js';"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0f0f14; --surface: #1a1a24; --border: #2a2a3a;
+  --text: #e0e0e8; --text2: #8888a0; --accent: #6c5ce7;
+  --green: #00b894; --red: #e17055; --gold: #fdcb6e;
+  --accent2: #a29bfe;
+}
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+/* Header */
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header h1 span { color: var(--accent); }
+.role-badge { display: flex; align-items: center; gap: 10px; }
+.role-badge select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 14px; cursor: pointer; outline: none; }
+.role-badge select:focus { border-color: var(--accent); }
+.role-indicator { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.role-indicator.ads { background: rgba(108,92,231,0.15); color: var(--accent2); }
+.role-indicator.product { background: rgba(0,184,148,0.15); color: var(--green); }
+
+/* Nav */
+.nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; padding: 0 24px; gap: 0; }
+.nav button { background: none; border: none; color: var(--text2); font-size: 14px; padding: 14px 24px; cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; }
+.nav button:hover { color: var(--text); }
+.nav button.active { color: var(--accent2); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* Main content */
+.main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+.card h3 { font-size: 16px; margin-bottom: 16px; color: var(--accent2); }
+.card h3 i { margin-right: 6px; }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 12px; color: var(--text2); font-weight: 500; }
+.form-group input, .form-group select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+.form-group input::placeholder { color: var(--text2); }
+.form-section-title { grid-column:1/-1; font-size: 13px; color: var(--gold); font-weight: 600; margin-top: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+/* Buttons */
+.btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .2s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #5b4bd5; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { background: #00a381; }
+.btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+.btn-danger:hover { background: rgba(225,112,85,0.1); }
+.btn-outline { background: transparent; color: var(--accent2); border: 1px solid var(--accent); }
+.btn-outline:hover { background: rgba(108,92,231,0.1); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.form-actions { margin-top: 16px; display: flex; gap: 10px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: var(--bg); color: var(--text2); font-weight: 600; padding: 10px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:hover td { background: rgba(108,92,231,0.05); }
+.num { text-align: right; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.roi-positive { color: var(--green); font-weight: 600; }
+.roi-negative { color: var(--red); font-weight: 600; }
+
+/* Stats cards */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.stat-card .stat-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.stat-card .stat-value { font-size: 22px; font-weight: 700; }
+.stat-card .stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+/* Charts */
+.chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.chart-row .card { margin-bottom: 0; display: flex; flex-direction: column; }
+.chart-row .card h3 { font-size: 14px; margin-bottom: 12px; color: var(--text1); flex-shrink: 0; }
+.chart-row .card canvas { flex: 1; max-height: 260px !important; }
+@media (max-width: 900px) { .chart-row { grid-template-columns: 1fr; } }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.tab-btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--text2); border: 1px solid var(--border); cursor: pointer; }
+.tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Date range */
+.date-range { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.date-range input[type="date"] { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; }
+
+/* Filter */
+.filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-row select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; }
+
+/* Status indicator */
+.status-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+.status-indicator.online { background: rgba(0,184,148,0.15); color: var(--green); }
+.status-indicator.offline { background: rgba(225,112,85,0.15); color: var(--red); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.status-indicator.online .status-dot { background: var(--green); }
+.status-indicator.offline .status-dot { background: var(--red); }
+
+/* Loading */
+.loading { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1><span>📊</span> TT小程序投放及收入数据管理系统</h1>
+  <div class="role-badge">
+    <div id="statusIndicator" class="status-indicator offline">
+      <div class="status-dot"></div>
+      <span>后端离线</span>
+    </div>
+    <select id="roleSelect" onchange="switchRole()">
+      <option value="ads">投放师</option>
+      <option value="product">产品</option>
+    </select>
+    <div id="roleBadge" class="role-indicator ads">投放师</div>
+  </div>
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button class="active" onclick="switchPage('input')">📥 数据录入</button>
+  <button onclick="switchPage('dashboard')">📊 数据看板</button>
+  <button onclick="switchPage('history')">📋 历史记录</button>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Page: 数据录入 -->
+  <div id="page-input" class="page active">
+    <!-- 投放师表单 -->
+    <div id="form-ads" class="card">
+      <h3>📥 投放数据录入</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>投放日期</label>
+          <input type="date" id="ad-date" />
+        </div>
+        <div class="form-group">
+          <label>包名</label>
+          <select id="ad-pkg">
+            <option value="">请选择</option>
+            <option>抖金所</option>
+            <option>倾心</option>
+            <option>换聊</option>
+            <option>移聊</option>
+            <option>LOVEU</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>投放组</label>
+          <select id="ad-group">
+            <option value="">请选择</option>
+            <option>红猩</option>
+            <option>倾心</option>
+            <option>新渠道</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>面板</label>
+          <select id="ad-panel">
+            <option value="">请选择</option>
+            <option>兑吧</option>
+            <option>微派</option>
+            <option>柚子</option>
+            <option>自研</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>消耗 ($)</label>
+          <input type="number" id="ad-spend" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="form-group">
+          <label>消耗去空耗 ($)</label>
+          <input type="number" id="ad-spendClean" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="form-group">
+          <label>收入投放口径 ($)</label>
+          <input type="number" id="ad-revenue" step="0.01" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="submitAdData()">✅ 提交投放数据</button>
+        <button class="btn btn-outline" onclick="clearAdForm()">清空</button>
+        <button class="btn btn-success" onclick="downloadAdTemplate()">📥 下载模板</button>
+        <button class="btn btn-outline" onclick="importAdExcel()">📤 导入Excel</button>
+        <input type="file" id="ad-excel-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleAdExcel(event)" />
+      </div>
+    </div>
+
+    <!-- 产品表单 -->
+    <div id="form-product" class="card" style="display:none">
+      <h3>📥 收入数据录入</h3>
+      <div class="tabs" id="rev-tabs">
+        <button class="tab-btn active" data-tab="当日" onclick="switchRevTab('当日')">当日</button>
+        <button class="tab-btn" data-tab="8日" onclick="switchRevTab('8日')">8日</button>
+        <button class="tab-btn" data-tab="14日" onclick="switchRevTab('14日')">14日</button>
+        <button class="tab-btn" data-tab="30日" onclick="switchRevTab('30日')">30日</button>
+        <button class="tab-btn" data-tab="45日" onclick="switchRevTab('45日')">45日</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>投放日期</label>
+          <input type="date" id="rev-date" />
+        </div>
+        <div class="form-group" id="rev-coin-group">
+          <label id="rev-coin-label">金币收入 ($)</label>
+          <input type="number" id="rev-coin" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="form-group" id="rev-coinRenew-group" style="display:none">
+          <label>金币续订 ($)</label>
+          <input type="number" id="rev-coinRenew" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="form-group" id="rev-firstSub-group">
+          <label>会员首订 ($)</label>
+          <input type="number" id="rev-firstSub" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="form-group" id="rev-renewSub-group">
+          <label id="rev-renewSub-label">会员续订 ($)</label>
+          <input type="number" id="rev-renewSub" step="0.01" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="submitRevenueData()">✅ 提交收入数据</button>
+        <button class="btn btn-outline" onclick="clearRevForm()">清空</button>
+        <button class="btn btn-success" onclick="downloadRevTemplate()">📥 下载模板</button>
+        <button class="btn btn-outline" onclick="importRevExcel()">📤 导入Excel</button>
+        <input type="file" id="rev-excel-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleRevExcel(event)" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: 数据看板 -->
+  <div id="page-dashboard" class="page">
+    <div class="card">
+      <h3>📊 数据筛选</h3>
+      <div class="filter-row">
+        <select id="dash-pkg" onchange="renderDashboard()">
+          <option value="">全部包名</option>
+          <option>抖金所</option>
+          <option>倾心</option>
+          <option>换聊</option>
+          <option>移聊</option>
+          <option>LOVEU</option>
+        </select>
+        <select id="dash-group" onchange="renderDashboard()">
+          <option value="">全部投放组</option>
+          <option>红猩</option>
+          <option>倾心</option>
+          <option>新渠道</option>
+        </select>
+        <select id="dash-panel" onchange="renderDashboard()">
+          <option value="">全部面板</option>
+          <option>兑吧</option>
+          <option>微派</option>
+          <option>柚子</option>
+          <option>自研</option>
+        </select>
+        <input type="date" id="dash-start" onchange="renderDashboard()" />
+        <input type="date" id="dash-end" onchange="renderDashboard()" />
+        <button class="btn btn-sm btn-outline" onclick="resetDashboardFilters()">重置</button>
+      </div>
+    </div>
+
+    <div class="stats-row" id="stats-row"></div>
+
+    <div class="chart-row">
+      <div class="card">
+        <h3>📈 ROI趋势</h3>
+        <canvas id="chart-roi"></canvas>
+      </div>
+      <div class="card">
+        <h3>💰 消耗 vs 收入</h3>
+        <canvas id="chart-spend-revenue"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: 历史记录 -->
+  <div id="page-history" class="page">
+    <div class="card">
+      <h3>📋 历史记录</h3>
+      <div class="tabs" id="history-tabs">
+        <button class="tab-btn active" data-tab="ads" onclick="switchHistoryTab('ads')">投放数据</button>
+        <button class="tab-btn" data-tab="revenues" onclick="switchHistoryTab('revenues')">收入数据</button>
+      </div>
+      <div class="date-range">
+        <input type="date" id="hist-start" onchange="loadHistory()" />
+        <span>至</span>
+        <input type="date" id="hist-end" onchange="loadHistory()" />
+        <button class="btn btn-sm btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
+        <button class="btn btn-sm btn-outline" onclick="loadHistory()">🔄 刷新</button>
+      </div>
+      <div id="history-table"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==================== 配置 ====================
+const API_BASE = 'http://localhost:3000/api';
+
+// ==================== 全局变量 ====================
+let currentRole = 'ads';
+let currentRevTab = '当日';
+let charts = { roi: null, spendRevenue: null };
+let selectedIds = new Set();
+
+// ==================== 后端状态检查 ====================
+async function checkBackendStatus() {
+    try {
+        const res = await fetch(`${API_BASE}/health`);
+        if (res.ok) {
+            document.getElementById('statusIndicator').className = 'status-indicator online';
+            document.getElementById('statusIndicator').querySelector('span').textContent = '后端在线';
+            return true;
+        }
+    } catch (e) {
+        document.getElementById('statusIndicator').className = 'status-indicator offline';
+        document.getElementById('statusIndicator').querySelector('span').textContent = '后端离线';
+        return false;
+    }
+    return false;
+}
+
+// ==================== 页面初始化 ====================
+window.addEventListener('DOMContentLoaded', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('ad-date').value = today;
+    document.getElementById('rev-date').value = today;
+    document.getElementById('hist-start').value = today;
+    document.getElementById('hist-end').value = today;
+
+    // 检查后端状态
+    await checkBackendStatus();
+
+    // 加载数据
+    await loadHistory();
+    await renderDashboard();
+});
+
+setInterval(checkBackendStatus, 30000);
+
+// ==================== 页面切换 ====================
+function switchPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(`page-${page}`).classList.add('active');
+    document.querySelectorAll('.nav button').forEach((b, i) => {
+        b.classList.toggle('active', ['input', 'dashboard', 'history'][i] === page);
+    });
+    if (page === 'dashboard') renderDashboard();
+    if (page === 'history') loadHistory();
+}
+
+function switchRole() {
+    currentRole = document.getElementById('roleSelect').value;
+    const badge = document.getElementById('roleBadge');
+    badge.textContent = currentRole === 'ads' ? '投放师' : '产品';
+    badge.className = `role-indicator ${currentRole}`;
+    document.getElementById('form-ads').style.display = currentRole === 'ads' ? 'block' : 'none';
+    document.getElementById('form-product').style.display = currentRole === 'product' ? 'block' : 'none';
+}
+
+function switchRevTab(tab) {
+    currentRevTab = tab;
+    document.querySelectorAll('#rev-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    updateRevTabUI();
+}
+
+function updateRevTabUI() {
+    const isFirst = currentRevTab === '当日';
+    document.getElementById('rev-coin-group').style.display = isFirst ? 'flex' : 'none';
+    document.getElementById('rev-coinRenew-group').style.display = isFirst ? 'none' : 'flex';
+    document.getElementById('rev-firstSub-group').style.display = isFirst ? 'flex' : 'none';
+    document.getElementById('rev-renewSub-group').style.display = 'flex';
+
+    document.getElementById('rev-renewSub-label').textContent = isFirst ? '会员续订 ($)' : `会员续订 (${currentRevTab})`;
+}
+
+// ==================== API 调用 ====================
+async function apiCall(endpoint, method = 'GET', data = null) {
+    const url = `${API_BASE}${endpoint}`;
+    const options = {
+        method,
+        headers: {}
+    };
+
+    if (data) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(data);
+    }
+
+    const res = await fetch(url, options);
+    return await res.json();
+}
+
+// ==================== 投放数据提交 ====================
+async function submitAdData() {
+    const date = document.getElementById('ad-date').value;
+    const pkg = document.getElementById('ad-pkg').value;
+    const group = document.getElementById('ad-group').value;
+    const panel = document.getElementById('ad-panel').value;
+    const spend = parseFloat(document.getElementById('ad-spend').value) || 0;
+    const spendClean = parseFloat(document.getElementById('ad-spendClean').value) || 0;
+    const revenue = parseFloat(document.getElementById('ad-revenue').value) || 0;
+
+    if (!date || !pkg || !group || !panel) {
+        alert('请填写完整信息！');
+        return;
+    }
+
+    try {
+        await apiCall('/ads', 'POST', { date, pkg, group, panel, spend, spendClean, revenue });
+        alert('✅ 投放数据提交成功！');
+        clearAdForm();
+        await renderDashboard();
+        await loadHistory();
+    } catch (error) {
+        alert('❌ 提交失败：' + error.message);
+    }
+}
+
+function clearAdForm() {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('ad-date').value = today;
+    document.getElementById('ad-pkg').value = '';
+    document.getElementById('ad-group').value = '';
+    document.getElementById('ad-panel').value = '';
+    document.getElementById('ad-spend').value = '';
+    document.getElementById('ad-spendClean').value = '';
+    document.getElementById('ad-revenue').value = '';
+}
+
+// ==================== 收入数据提交 ====================
+async function submitRevenueData() {
+    const date = document.getElementById('rev-date').value;
+    const installDays = currentRevTab;
+    const coin = parseFloat(document.getElementById('rev-coin').value) || 0;
+    const firstSub = parseFloat(document.getElementById('rev-firstSub').value) || 0;
+    const renewSub = parseFloat(document.getElementById('rev-renewSub').value) || 0;
+    const coinRenew = parseFloat(document.getElementById('rev-coinRenew').value) || 0;
+
+    if (!date) {
+        alert('请选择投放日期！');
+        return;
+    }
+
+    const total = coin + firstSub + renewSub + coinRenew;
+
+    try {
+        await apiCall('/revenues', 'POST', {
+            date, installDays, coin, firstSub, renewSub, coinRenew, total
+        });
+        alert('✅ 收入数据提交成功！');
+        clearRevForm();
+        await renderDashboard();
+        await loadHistory();
+    } catch (error) {
+        alert('❌ 提交失败：' + error.message);
+    }
+}
+
+function clearRevForm() {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('rev-date').value = today;
+    document.getElementById('rev-coin').value = '';
+    document.getElementById('rev-firstSub').value = '';
+    document.getElementById('rev-renewSub').value = '';
+    document.getElementById('rev-coinRenew').value = '';
+}
+
+// ==================== 数据看板 ====================
+async function renderDashboard() {
+    const pkg = document.getElementById('dash-pkg').value;
+    const group = document.getElementById('dash-group').value;
+    const panel = document.getElementById('dash-panel').value;
+    const startDate = document.getElementById('dash-start').value;
+    const endDate = document.getElementById('dash-end').value;
+
+    try {
+        // 获取统计数据
+        const statsParams = new URLSearchParams();
+        if (startDate) statsParams.append('startDate', startDate);
+        if (endDate) statsParams.append('endDate', endDate);
+        if (pkg) statsParams.append('pkg', pkg);
+        if (group) statsParams.append('group', group);
+        if (panel) statsParams.append('panel', panel);
+
+        const statsRes = await apiCall(`/stats?${statsParams.toString()}`);
+        if (!statsRes.success) return;
+
+        const { totalSpend, totalSpendClean, totalRevenue, roi, roiClean } = statsRes.data;
+
+        // 渲染统计卡片
+        document.getElementById('stats-row').innerHTML = `
+            <div class="stat-card"><div class="stat-label">总消耗</div><div class="stat-value">$${totalSpend.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div class="stat-card"><div class="stat-label">总收入</div><div class="stat-value">$${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div class="stat-card"><div class="stat-label">整体ROI</div><div class="stat-value ${roi >= 0 ? 'roi-positive' : 'roi-negative'}">${(roi * 100).toFixed(2)}%</div></div>
+            <div class="stat-card"><div class="stat-label">去空耗ROI</div><div class="stat-value ${roiClean >= 0 ? 'roi-positive' : 'roi-negative'}">${(roiClean * 100).toFixed(2)}%</div></div>
+        `;
+
+        // 获取图表数据
+        const chartParams = new URLSearchParams();
+        if (startDate) chartParams.append('startDate', startDate);
+        if (endDate) chartParams.append('endDate', endDate);
+        if (pkg) chartParams.append('pkg', pkg);
+        if (group) chartParams.append('group', group);
+        if (panel) chartParams.append('panel', panel);
+
+        const chartRes = await apiCall(`/chart-data?${chartParams.toString()}`);
+        if (!chartRes.success) return;
+
+        renderCharts(chartRes.data);
+    } catch (error) {
+        console.error('渲染看板失败：', error);
+    }
+}
+
+function renderCharts(chartData) {
+    // ROI趋势图
+    if (charts.roi) charts.roi.destroy();
+    const roiCtx = document.getElementById('chart-roi').getContext('2d');
+    charts.roi = new Chart(roiCtx, {
+        type: 'line',
+        data: {
+            labels: chartData.map(d => d.date),
+            datasets: [{
+                label: 'ROI',
+                data: chartData.map(d => d.roi * 100),
+                borderColor: '#6c5ce7',
+                backgroundColor: 'rgba(108,92,231,0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: '去空耗ROI',
+                data: chartData.map(d => d.roiClean * 100),
+                borderColor: '#00b894',
+                backgroundColor: 'rgba(0,184,148,0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#e0e0e8' } } },
+            scales: {
+                x: { ticks: { color: '#8888a0' }, grid: { color: '#2a2a3a' } },
+                y: { ticks: { color: '#8888a0' }, grid: { color: '#2a2a3a' } }
+            }
+        }
+    });
+
+    // 消耗vs收入图
+    if (charts.spendRevenue) charts.spendRevenue.destroy();
+    const srCtx = document.getElementById('chart-spend-revenue').getContext('2d');
+    charts.spendRevenue = new Chart(srCtx, {
+        type: 'bar',
+        data: {
+            labels: chartData.map(d => d.date),
+            datasets: [{
+                label: '消耗',
+                data: chartData.map(d => d.spend),
+                backgroundColor: 'rgba(108,92,231,0.7)'
+            }, {
+                label: '收入',
+                data: chartData.map(d => d.revenue),
+                backgroundColor: 'rgba(0,184,148,0.7)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#e0e0e8' } } },
+            scales: {
+                x: { ticks: { color: '#8888a0' }, grid: { color: '#2a2a3a' } },
+                y: { ticks: { color: '#8888a0' }, grid: { color: '#2a2a3a' } }
+            }
+        }
+    });
+}
+
+function resetDashboardFilters() {
+    document.getElementById('dash-pkg').value = '';
+    document.getElementById('dash-group').value = '';
+    document.getElementById('dash-panel').value = '';
+    document.getElementById('dash-start').value = '';
+    document.getElementById('dash-end').value = '';
+    renderDashboard();
+}
+
+// ==================== 历史记录 ====================
+let currentHistoryTab = 'ads';
+
+function switchHistoryTab(tab) {
+    currentHistoryTab = tab;
+    document.querySelectorAll('#history-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    loadHistory();
+}
+
+async function loadHistory() {
+    const startDate = document.getElementById('hist-start').value;
+    const endDate = document.getElementById('hist-end').value;
+
+    try {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+
+        const res = await apiCall(`/${currentHistoryTab}?${params.toString()}`);
+        if (!res.success) return;
+
+        renderHistoryTable(res.data);
+    } catch (error) {
+        console.error('加载历史记录失败：', error);
+    }
+}
+
+function renderHistoryTable(data) {
+    selectedIds.clear();
+
+    if (currentHistoryTab === 'ads') {
+        renderAdsTable(data);
+    } else {
+        renderRevenuesTable(data);
+    }
+}
+
+function renderAdsTable(data) {
+    let html = `<div class="table-wrap"><table>
+        <thead><tr>
+            <th><input type="checkbox" onchange="toggleSelectAll(this, 'ads')" /></th>
+            <th>ID</th><th>日期</th><th>包名</th><th>投放组</th><th>面板</th>
+            <th class="num">消耗($)</th><th class="num">去空耗($)</th><th class="num">收入($)</th>
+            <th class="num">ROI</th><th class="num">去空耗ROI</th><th>操作</th>
+        </tr></thead><tbody>`;
+
+    data.forEach(row => {
+        const roi = row.spend > 0 ? row.revenue / row.spend : 0;
+        const roiClean = row.spend_clean > 0 ? row.revenue / row.spend_clean : 0;
+        const checked = selectedIds.has(row.id) ? 'checked' : '';
+        html += `<tr>
+            <td><input type="checkbox" class="select-checkbox" data-id="${row.id}" ${checked} onchange="toggleSelect(this, ${row.id})" /></td>
+            <td>${row.id}</td>
+            <td>${row.date}</td>
+            <td>${row.pkg}</td>
+            <td>${row.group_name}</td>
+            <td>${row.panel}</td>
+            <td class="num">${row.spend.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td class="num">${row.spend_clean.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td class="num">${row.revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td class="num ${(roi * 100).toFixed(2) >= 0 ? 'roi-positive' : 'roi-negative'}">${(roi * 100).toFixed(2)}%</td>
+            <td class="num ${(roiClean * 100).toFixed(2) >= 0 ? 'roi-positive' : 'roi-negative'}">${(roiClean * 100).toFixed(2)}%</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteAd(${row.id})">删除</button></td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('history-table').innerHTML = html;
+}
+
+function renderRevenuesTable(data) {
+    let html = `<div class="table-wrap"><table>
+        <thead><tr>
+            <th><input type="checkbox" onchange="toggleSelectAll(this, 'revenues')" /></th>
+            <th>ID</th><th>日期</th><th>天数</th>
+            <th class="num">金币收入($)</th><th class="num">会员首订($)</th>
+            <th class="num">会员续订($)</th><th class="num">金币续订($)</th>
+            <th class="num">合计($)</th><th>操作</th>
+        </tr></thead><tbody>`;
+
+    data.forEach(row => {
+        const checked = selectedIds.has(row.id) ? 'checked' : '';
+        html += `<tr>
+            <td><input type="checkbox" class="select-checkbox" data-id="${row.id}" ${checked} onchange="toggleSelect(this, ${row.id})" /></td>
+            <td>${row.id}</td>
+            <td>${row.date}</td>
+            <td>${row.install_days}</td>
+            <td class="num">${row.coin.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td class="num">${row.first_sub.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td class="num">${row.renew_sub.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td class="num">${row.coin_renew.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td class="num">${row.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteRevenue(${row.id})">删除</button></td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('history-table').innerHTML = html;
+}
+
+// ==================== 删除操作 ====================
+async function deleteAd(id) {
+    if (!confirm('确定要删除这条投放数据吗？')) return;
+    try {
+        await apiCall(`/ads/${id}`, 'DELETE');
+        alert('✅ 删除成功！');
+        await loadHistory();
+        await renderDashboard();
+    } catch (error) {
+        alert('❌ 删除失败：' + error.message);
+    }
+}
+
+async function deleteRevenue(id) {
+    if (!confirm('确定要删除这条收入数据吗？')) return;
+    try {
+        await apiCall(`/revenues/${id}`, 'DELETE');
+        alert('✅ 删除成功！');
+        await loadHistory();
+        await renderDashboard();
+    } catch (error) {
+        alert('❌ 删除失败：' + error.message);
+    }
+}
+
+async function deleteSelected() {
+    if (selectedIds.size === 0) {
+        alert('请先选择要删除的数据！');
+        return;
+    }
+
+    if (!confirm(`确定要删除选中的 ${selectedIds.size} 条数据吗？`)) return;
+
+    try {
+        const ids = Array.from(selectedIds);
+        await apiCall(`/${currentHistoryTab}/delete-batch`, 'POST', { ids });
+        alert('✅ 删除成功！');
+        selectedIds.clear();
+        await loadHistory();
+        await renderDashboard();
+    } catch (error) {
+        alert('❌ 删除失败：' + error.message);
+    }
+}
+
+function toggleSelect(checkbox, id) {
+    if (checkbox.checked) {
+        selectedIds.add(id);
+    } else {
+        selectedIds.delete(id);
+    }
+}
+
+function toggleSelectAll(masterCheckbox, type) {
+    const checkboxes = document.querySelectorAll('.select-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = masterCheckbox.checked;
+        const id = parseInt(cb.dataset.id);
+        if (masterCheckbox.checked) {
+            selectedIds.add(id);
+        } else {
+            selectedIds.delete(id);
+        }
+    });
+}
+
+// ==================== Excel导入 ====================
+function importAdExcel() {
+    document.getElementById('ad-excel-input').click();
+}
+
+function importRevExcel() {
+    document.getElementById('rev-excel-input').click();
+}
+
+async function handleAdExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const workbook = XLSX.read(e.target.result, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+            const data = jsonData.map(row => ({
+                date: row['投放日期'] || row['date'] || '',
+                pkg: row['包名'] || row['pkg'] || '',
+                group: row['投放组'] || row['group'] || '',
+                panel: row['面板'] || row['panel'] || '',
+                spend: parseFloat(row['消耗'] || row['spend']) || 0,
+                spendClean: parseFloat(row['消耗去空耗'] || row['spendClean']) || 0,
+                revenue: parseFloat(row['收入投放口径'] || row['revenue']) || 0
+            }));
+
+            await apiCall('/ads/batch', 'POST', { data });
+            alert(`✅ 成功导入 ${data.length} 条投放数据！`);
+            await renderDashboard();
+            await loadHistory();
+        } catch (error) {
+            alert('❌ 导入失败：' + error.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+}
+
+async function handleRevExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const workbook = XLSX.read(e.target.result, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+            const data = jsonData.map(row => ({
+                date: row['投放日期'] || row['date'] || '',
+                installDays: row['天数'] || row['installDays'] || '当日',
+                coin: parseFloat(row['金币收入'] || row['coin']) || 0,
+                firstSub: parseFloat(row['会员首订'] || row['firstSub']) || 0,
+                renewSub: parseFloat(row['会员续订'] || row['renewSub']) || 0,
+                coinRenew: parseFloat(row['金币续订'] || row['coinRenew']) || 0,
+                total: 0
+            }));
+
+            data.forEach(item => {
+                item.total = item.coin + item.firstSub + item.renewSub + item.coinRenew;
+            });
+
+            await apiCall('/revenues/batch', 'POST', { data });
+            alert(`✅ 成功导入 ${data.length} 条收入数据！`);
+            await renderDashboard();
+            await loadHistory();
+        } catch (error) {
+            alert('❌ 导入失败：' + error.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+}
+
+// ==================== 模板下载 ====================
+function downloadAdTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['投放日期', '包名', '投放组', '面板', '消耗($)', '消耗去空耗($)', '收入投放口径($)'],
+        ['2026-06-01', '抖金所', '红猩', '兑吧', '1000.00', '900.00', '1200.00']
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '投放数据模板');
+    XLSX.writeFile(wb, '投放数据模板.xlsx');
+}
+
+function downloadRevTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['投放日期', '天数', '金币收入($)', '会员首订($)', '会员续订($)', '金币续订($)'],
+        ['2026-06-01', '当日', '500.00', '300.00', '200.00', '0.00']
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '收入数据模板');
+    XLSX.writeFile(wb, '收入数据模板.xlsx');
+}
+</script>
+</body>
+</html>
