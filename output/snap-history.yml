@@ -1,0 +1,17 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - heading "TT投放数据" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - generic [ref=e5]: 产品
+      - combobox [ref=e6] [cursor=pointer]:
+        - option "产品" [selected]
+        - option "投放师"
+    - generic [ref=e7]:
+      - button "📤 导出备份" [ref=e8] [cursor=pointer]
+      - button "📥 导入备份" [ref=e9] [cursor=pointer]
+      - button "☁️ 上传云端" [ref=e10] [cursor=pointer]
+      - button "☁️ 从云端恢复" [ref=e11] [cursor=pointer]
+  - navigation [ref=e12]:
+    - button "数据录入" [ref=e13] [cursor=pointer]
+    - button "历史记录" [active] [ref=e14] [cursor=pointer]
+    - button "数据看板" [ref=e15] [cursor=pointer]
