@@ -23,7 +23,7 @@ def supabase_req(method, path, body=None):
 # 1. 导出飞书表格
 import subprocess, sys, os
 result = subprocess.run(
-    ['lark-cli', 'sheets', '+workbook-export',
+    ['bash', '/c/Users/DZ/.workbuddy/binaries/node/cli-connector-packages/lark-cli', 'sheets', '+workbook-export',
      '--url', 'https://my.feishu.cn/sheets/YqR1sDuMdhq62utI0dvcM5IynJg',
      '--output-path', EXCEL],
     capture_output=True, text=True, cwd='C:/Users/DZ/WorkBuddy/2026-06-29-19-43-45')
@@ -99,7 +99,7 @@ for i in range(0, len(import_data), BATCH):
                 'total': r['total']} for r in batch]
     status, resp = supabase_req('POST', '/revenues', payload)
     if status == 201:
-        print(f'  批次 {i//BATCH+1}: 插入 {len(payload)} 条 ✓')
+        print(f'  批次 {i//BATCH+1}: 插入 {len(payload)} 条 OK')
     else:
         print(f'  批次 {i//BATCH+1} 失败: {status} {resp[:200]}')
         break
