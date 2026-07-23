@@ -82,15 +82,19 @@ dates = sorted(set(r['date'] for r in import_data))
 print(f'涉及日期: {len(dates)} 个')
 
 BATCH = 50
+
+# 先一次性清空所有涉及日期的旧数据
+# 避免按 50 条切批时，同一日期的 D0 与 N日被切到相邻批次，
+# 后批次的 DELETE 把前批次刚 INSERT 的数据抹掉
+all_dates = sorted(set(r['date'] for r in import_data))
+print(f'清空旧数据，涉及 {len(all_dates)} 个日期...')
+for d in all_dates:
+    status, _ = supabase_req('DELETE', f'/revenues?date=eq.{d}')
+    if status != 204:
+        print(f'  删除 {d} 失败: {status}')
+
 for i in range(0, len(import_data), BATCH):
     batch = import_data[i:i+BATCH]
-    batch_dates = sorted(set(r['date'] for r in batch))
-
-    # 删除旧数据
-    for d in batch_dates:
-        status, _ = supabase_req('DELETE', f'/revenues?date=eq.{d}')
-        if status != 204:
-            print(f'  删除 {d} 失败: {status}')
 
     # 插入新数据
     payload = [{'date': r['date'], 'install_days': r['installDays'],
